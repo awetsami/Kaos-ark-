@@ -23,20 +23,30 @@ public class ObstacleManager : NetworkBehaviour
 
     private float lastSpawnY = 0f;
 
-    void Awake()
+    // Sadece sunucu ayaklandığında havuzu oluşturur (Hayalet obje oluşumunu engeller)
+    public override void OnStartServer()
     {
+        base.OnStartServer();
         obstaclePool = new List<GameObject>();
+
         for (int i = 0; i < poolSize; i++)
         {
-            GameObject obj = Instantiate(obstaclePrefab);
-            obj.transform.SetParent(this.transform);
-            obj.SetActive(false);
+            GameObject obj = Instantiate(obstaclePrefab, this.transform);
+
+            // Objeyi ağa sok ve anında uykuya al (Havuza gönder)
+            // false parametresi objenin tamamen silinmesini engeller, yeniden kullanıma hazır bekletir
+            ServerManager.Spawn(obj);
+            ServerManager.Despawn(obj, DespawnType.Pool);
+
             obstaclePool.Add(obj);
         }
     }
 
     void Update()
     {
+        // Güvenlik Kilidi: Sadece sunucu zamanı sayıp kaya üretebilir
+        if (!IsServerInitialized) return;
+
         if (AviatorManager.Instance == null || !AviatorManager.Instance.isFlightActive.Value) return;
 
         float currentMultiplier = AviatorManager.Instance.currentMultiplier.Value;
@@ -61,13 +71,12 @@ public class ObstacleManager : NetworkBehaviour
 
             float spawnY = (lastSpawnY <= 0f) ? maxY : minY;
             lastSpawnY = spawnY;
-
             float adjustedSpawnY = (spawnY == maxY) ? maxY - (rockHeight / 2f) : minY + (rockHeight / 2f);
 
             rock.transform.position = this.transform.position + new Vector3(0, adjustedSpawnY, 0);
-            rock.SetActive(true);
 
-            base.Spawn(rock);
+            // Havuzdan çekilen kayayı ağda görünür hale getir (Kameralar artık bunu görebilir)
+            ServerManager.Spawn(rock);
         }
     }
 
@@ -75,7 +84,12 @@ public class ObstacleManager : NetworkBehaviour
     {
         for (int i = 0; i < obstaclePool.Count; i++)
         {
-            if (!obstaclePool[i].activeInHierarchy) return obstaclePool[i];
+            NetworkObject nob = obstaclePool[i].GetComponent<NetworkObject>();
+            // Eğer obje ağda aktif değilse (havuzda uyuyorsa) onu seç
+            if (nob != null && !nob.IsSpawned)
+            {
+                return obstaclePool[i];
+            }
         }
         return null;
     }
