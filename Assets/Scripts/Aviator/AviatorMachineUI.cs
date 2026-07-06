@@ -9,12 +9,20 @@ public class AviatorMachineUI : MonoBehaviour
     {
         if (AviatorManager.Instance == null) return;
 
-        if (!AviatorManager.Instance.isFlightActive.Value)
+        // 1. DURUM: GERİ SAYIM AKTİFSE
+        if (AviatorManager.Instance.isCountingDown.Value)
+        {
+            aviatorStatsText.text = $"<align=center><size=150%><color=#FFA500>UÇUŞA HAZIRLAN</color></size></align>\n\n" +
+                                    $"<align=center><size=250%>{AviatorManager.Instance.countdownTimer.Value}</size></align>";
+        }
+        // 2. DURUM: BEKLEME MODUNDAYSA (Oyun başlamadıysa)
+        else if (!AviatorManager.Instance.isFlightActive.Value)
         {
             aviatorStatsText.text = $"<align=center><size=130%><color=#FFCC00>AVIATOR SYSTEM</color></size></align>\n\n" +
                                      $"GİRİLEN BAHİS: {AviatorManager.Instance.currentBet.Value}$\n" +
                                      $"<size=80%><color=white>BAHİS GİRİN VE START'A BASIN</color></size>";
         }
+        // 3. DURUM: UÇUŞ BAŞLADIYSA (Havadaysak)
         else
         {
             int liveReward = Mathf.FloorToInt(AviatorManager.Instance.currentBet.Value * AviatorManager.Instance.currentMultiplier.Value);
